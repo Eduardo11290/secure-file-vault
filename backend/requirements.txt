@@ -1,0 +1,9 @@
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+sqlalchemy==2.0.36
+psycopg[binary,pool]==3.3.3  # Replaced asyncpg for Windows compatibility
+redis==5.0.1              # Rate limiting & caching
+passlib[bcrypt]==1.7.4    # Password hashing
+python-jose[cryptography]==3.3.0 # JWT tokens
+cryptography==41.0.5      # AES-256 encryption
+pydantic-settings==2.1.0  # Environment variable validation
