@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     # JWT Configuration (NOI)
     SECRET_KEY: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+
+    ENCRYPTION_KEY: str
     
     @property
     def DATABASE_URL(self) -> str:

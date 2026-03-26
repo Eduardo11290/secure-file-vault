@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from app.core.database import engine, Base
 from app.models.user import User
 from app.models.file import File
-from app.api import auth, users
+from app.api import auth, users, files
 
 # Set up structured logging
 logging.basicConfig(
@@ -36,6 +36,9 @@ app = FastAPI(
 
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(users.router, prefix="/api/users", tags=["Users"])
+app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
+app.include_router(users.router, prefix="/api/users", tags=["Users"])
+app.include_router(files.router, prefix="/api/files", tags=["Files"])
 
 @app.get("/health", tags=["System"])
 async def health_check():
