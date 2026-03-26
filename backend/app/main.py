@@ -2,11 +2,10 @@ from fastapi import FastAPI
 import logging
 from contextlib import asynccontextmanager
 
-# Import engine and base from our database setup
 from app.core.database import engine, Base
-# Import models so SQLAlchemy knows they exist before creating tables
 from app.models.user import User
 from app.models.file import File
+from app.api import auth, users
 
 # Set up structured logging
 logging.basicConfig(
@@ -34,6 +33,9 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan
 )
+
+app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
+app.include_router(users.router, prefix="/api/users", tags=["Users"])
 
 @app.get("/health", tags=["System"])
 async def health_check():
