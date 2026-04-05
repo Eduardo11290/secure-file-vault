@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from app.core.database import engine, Base
 from app.models.user import User
 from app.models.file import File
+from app.models.share import ShareLink
 from app.api import auth, users, files
 
 # Set up structured logging
