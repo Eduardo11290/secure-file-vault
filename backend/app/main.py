@@ -37,8 +37,6 @@ app = FastAPI(
 
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(users.router, prefix="/api/users", tags=["Users"])
-app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
-app.include_router(users.router, prefix="/api/users", tags=["Users"])
 app.include_router(files.router, prefix="/api/files", tags=["Files"])
 
 @app.get("/health", tags=["System"])

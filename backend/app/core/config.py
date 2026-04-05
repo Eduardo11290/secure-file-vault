@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
     ENCRYPTION_KEY: str
+    DEBUG: bool = False
     
     @property
     def DATABASE_URL(self) -> str:

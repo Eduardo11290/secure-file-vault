@@ -5,7 +5,7 @@ from app.core.config import settings
 # Create async database engine
 engine = create_async_engine(
     settings.DATABASE_URL,
-    echo=True, # Prints SQL queries to the terminal (useful for debugging)
+    echo=settings.DEBUG
 )
 
 # Create session factory
