@@ -12,4 +12,6 @@ class User(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
     is_active = Column(Boolean, default=True)
+    totp_secret = Column(String, nullable=True)
+    totp_enabled = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))

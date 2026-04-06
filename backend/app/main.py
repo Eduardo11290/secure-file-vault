@@ -1,12 +1,19 @@
 from fastapi import FastAPI
 import logging
 from contextlib import asynccontextmanager
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from fastapi.middleware.cors import CORSMiddleware
+
+from app.core.limiter import limiter
 
 from app.core.database import engine, Base
 from app.models.user import User
 from app.models.file import File
 from app.models.share import ShareLink
-from app.api import auth, users, files
+from app.models.audit import AuditLog
+from app.api import auth, users, files, audit
+
 
 # Set up structured logging
 logging.basicConfig(
@@ -35,9 +42,24 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173"
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],  
+    allow_headers=["*"],
+)
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(users.router, prefix="/api/users", tags=["Users"])
 app.include_router(files.router, prefix="/api/files", tags=["Files"])
+app.include_router(audit.router, prefix="/api/audit", tags=["Audit"])
 
 @app.get("/health", tags=["System"])
 async def health_check():

@@ -2,8 +2,10 @@ import os
 import uuid
 import secrets
 from sqlalchemy.future import select
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, status, Response
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, status, Response, Request
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.audit import log_audit
 
 from app.core.database import get_db
 from app.api.deps import get_current_user
@@ -22,6 +24,7 @@ os.makedirs(VAULT_DIR, exist_ok=True)
 
 @router.post("/upload", response_model=FileResponse, status_code=status.HTTP_201_CREATED)
 async def upload_file(
+    request: Request,
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -47,9 +50,11 @@ async def upload_file(
         await db.commit()
         await db.refresh(new_file)
         
+        await log_audit(db, request, "UPLOAD", "SUCCESS", user_id=current_user.id, resource_id=str(new_file.id), details=new_file.filename)
         return new_file
         
     except Exception as e:
+        await log_audit(db, request, "UPLOAD", "FAILURE", user_id=current_user.id, details=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"File processing error: {str(e)}"
@@ -57,6 +62,7 @@ async def upload_file(
     
 @router.get("/download/{file_id}")
 async def download_file(
+    request: Request,
     file_id: uuid.UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -70,6 +76,7 @@ async def download_file(
     db_file = result.scalars().first()
     
     if not db_file:
+        await log_audit(db, request, "DOWNLOAD", "FAILURE", user_id=current_user.id, resource_id=str(file_id), details="File not found or access denied")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, 
             detail="File not found or access denied"
@@ -96,6 +103,7 @@ async def download_file(
         )
         
     # 5. Return the raw bytes as a downloadable file attachment
+    await log_audit(db, request, "DOWNLOAD", "SUCCESS", user_id=current_user.id, resource_id=str(db_file.id))
     return Response(
         content=decrypted_bytes,
         media_type="application/octet-stream",
@@ -107,19 +115,28 @@ async def download_file(
 @router.get("/", response_model=List[FileResponse])
 async def list_files(
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    skip: int = 0,
+    limit: int = 20,
+    search: str | None = None
 ):
     """Retrieves a list of all files owned by the authenticated user."""
     
-    result = await db.execute(
-        select(DBFile).where(DBFile.user_id == current_user.id)
-    )
+    query = select(DBFile).where(DBFile.user_id == current_user.id)
+    
+    if search:
+        query = query.where(DBFile.filename.ilike(f"%{search}%"))
+        
+    query = query.offset(skip).limit(limit)
+    
+    result = await db.execute(query)
     files = result.scalars().all()
     
     return files
 
 @router.delete("/{file_id}")
 async def delete_file(
+    request: Request,
     file_id: uuid.UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -132,6 +149,7 @@ async def delete_file(
     db_file = result.scalars().first()
     
     if not db_file:
+        await log_audit(db, request, "DELETE", "FAILURE", user_id=current_user.id, resource_id=str(file_id), details="File not found or access denied")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, 
             detail="File not found or access denied"
@@ -148,10 +166,12 @@ async def delete_file(
     await db.delete(db_file)
     await db.commit()
     
+    await log_audit(db, request, "DELETE", "SUCCESS", user_id=current_user.id, resource_id=str(file_id))
     return {"detail": "File deleted successfully"}
 
 @router.post("/{file_id}/share")
 async def create_share_link(
+    request: Request,
     file_id: uuid.UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -163,6 +183,7 @@ async def create_share_link(
     db_file = result.scalars().first()
     
     if not db_file:
+        await log_audit(db, request, "SHARE", "FAILURE", user_id=current_user.id, resource_id=str(file_id), details="File not found")
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
         
     token = secrets.token_urlsafe(32)
@@ -177,10 +198,11 @@ async def create_share_link(
     db.add(share_link)
     await db.commit()
     
+    await log_audit(db, request, "SHARE", "SUCCESS", user_id=current_user.id, resource_id=str(file_id), details=f"Generated token ...{token[-4:]}")
     return {"share_token": token, "expires_at": expires}
 
 @router.get("/shared/{token}")
-async def download_shared_file(token: str, db: AsyncSession = Depends(get_db)):
+async def download_shared_file(request: Request, token: str, db: AsyncSession = Depends(get_db)):
     """Retrieves and decrypts a file using a valid share token. No auth required."""
     result = await db.execute(
         select(ShareLink).where(ShareLink.token == token)
@@ -189,6 +211,7 @@ async def download_shared_file(token: str, db: AsyncSession = Depends(get_db)):
     
     # Check if token exists, is not used, and is not expired
     if not link or link.is_used or link.expires_at < datetime.now(timezone.utc):
+        await log_audit(db, request, "DOWNLOAD", "FAILURE", details="Invalid, expired, or used token")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid, expired, or used token")
         
     file_result = await db.execute(select(DBFile).where(DBFile.id == link.file_id))
@@ -205,6 +228,8 @@ async def download_shared_file(token: str, db: AsyncSession = Depends(get_db)):
     # Burn the token so it can never be used again
     link.is_used = True
     await db.commit()
+    
+    await log_audit(db, request, "DOWNLOAD", "SUCCESS", user_id=db_file.user_id, resource_id=str(db_file.id), details="Via share token")
     
     return Response(
         content=decrypted_bytes,

@@ -7,6 +7,7 @@ from sqlalchemy.future import select
 from app.core.config import settings
 from app.core.database import get_db
 from app.models.user import User
+from app.core.redis import redis_client
 
 # This tells FastAPI where the login route is, so Swagger UI knows how to authenticate
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
@@ -20,7 +21,11 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
         headers={"WWW-Authenticate": "Bearer"},
     )
     
-    # 1. Decode the token
+    # 1. Decode the token (and check Redis blacklist)
+    is_blacklisted = await redis_client.get(f"blacklist:{token}")
+    if is_blacklisted:
+        raise credentials_exception
+        
     try:
         # We use the same SECRET_KEY that we used to create the token
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])

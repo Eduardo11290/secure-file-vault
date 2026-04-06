@@ -1,0 +1,151 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono&display=swap');
+
+:root {
+  --bg-primary: #0F172A;
+  --bg-card: #1E293B;
+  --text-primary: #F8FAFC;
+  --text-secondary: #94A3B8;
+  --accent-primary: #10B981;
+  --accent-hover: #059669;
+  --accent-destructive: #EF4444;
+  --accent-destructive-hover: #DC2626;
+  --border-color: #334155;
+  --radius-sm: 0.125rem;
+  --shadow-glow: 0 0 10px rgba(16, 185, 129, 0.4);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--text-primary);
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.mono-text {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Base Components */
+.card {
+  background-color: var(--bg-card);
+  border-radius: var(--radius-sm);
+  padding: 1.5rem;
+  border: 1px solid var(--border-color);
+}
+
+.btn {
+  display: inline-block;
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 1rem;
+  transition: all 0.2s ease;
+  color: #fff;
+}
+
+.btn-primary {
+  background-color: var(--accent-primary);
+}
+
+.btn-primary:hover {
+  background-color: var(--accent-hover);
+  box-shadow: var(--shadow-glow);
+}
+
+.btn-danger {
+  background-color: var(--accent-destructive);
+}
+
+.btn-danger:hover {
+  background-color: var(--accent-destructive-hover);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+}
+
+.btn-outline {
+  background-color: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+}
+
+.btn-outline:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+.input-field {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: 'Inter', sans-serif;
+  margin-bottom: 1rem;
+  transition: border-color 0.2s ease;
+}
+
+.input-field:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 1px var(--accent-primary);
+}
+
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+
+.table-container {
+  width: 100%;
+  overflow-x: auto;
+  background-color: var(--bg-card);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+th {
+  background-color: rgba(0,0,0,0.2);
+  color: var(--text-secondary);
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+tr:last-child td {
+  border-bottom: none;
+}

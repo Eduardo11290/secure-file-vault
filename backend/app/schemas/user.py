@@ -12,7 +12,15 @@ class UserResponse(BaseModel):
     id: UUID
     email: EmailStr
     is_active: bool
+    totp_enabled: bool
     created_at: datetime
 
     class Config:
         from_attributes = True  # Allows Pydantic to read SQLAlchemy models
+
+class Verify2FA(BaseModel):
+    code: str
+
+class Login2FA(BaseModel):
+    temp_token: str
+    code: str
