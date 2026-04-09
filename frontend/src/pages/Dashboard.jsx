@@ -1,216 +1,121 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
+import { FileOutput, ShieldAlert, Settings, LogOut, ChevronRight } from 'lucide-react';
+import FilesView from '../components/FilesView';
+import SettingsView from '../components/SettingsView';
+import AuditLogView from '../components/AuditLogView';
 import { useDispatch } from 'react-redux';
 import { logoutUser } from '../store/authSlice';
-import { LogOut, UploadCloud, File as FileIcon, Trash2, Share2, Download, Search } from 'lucide-react';
-import api from '../api/client';
 
-const Dashboard = () => {
-  const [files, setFiles] = useState([]);
-  const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [shareToken, setShareToken] = useState(null);
-  
-  const fileInputRef = useRef(null);
+export default function Dashboard() {
+  const [activeView, setActiveView] = useState('Files');
   const dispatch = useDispatch();
 
-  useEffect(() => {
-    fetchFiles();
-  }, [search]);
-
-  const fetchFiles = async () => {
-    setLoading(true);
-    try {
-      const response = await api.get('/files/', {
-        params: { search: search || undefined }
-      });
-      setFiles(response.data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
+  const renderView = () => {
+    switch(activeView) {
+      case 'Files': return <FilesView />;
+      case 'Settings': return <SettingsView />;
+      case 'AuditLog': return <AuditLogView />;
+      default: return <FilesView />;
     }
   };
 
-  const handleUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-      await api.post('/files/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      fetchFiles();
-    } catch (err) {
-      alert("Failed to upload file");
-    }
-  };
-
-  const handleDownload = async (fileId, filename) => {
-    try {
-      const response = await api.get(`/files/download/${fileId}`, {
-        responseType: 'blob'
-      });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', filename);
-      document.body.appendChild(link);
-      link.click();
-      link.parentNode.removeChild(link);
-    } catch (err) {
-      alert("Failed to download file");
-    }
-  };
-
-  const handleDelete = async (fileId) => {
-    if (!window.confirm("Are you sure you want to delete this file?")) return;
-    try {
-      await api.delete(`/files/${fileId}`);
-      fetchFiles();
-    } catch (err) {
-      alert("Failed to delete file");
-    }
-  };
-
-  const handleShare = async (fileId) => {
-    try {
-      const response = await api.post(`/files/${fileId}/share`);
-      const token = response.data.share_token;
-      setShareToken(`${window.location.origin}/shared/${token}`);
-    } catch (err) {
-      alert("Failed to generate share link");
-    }
-  };
+  const navItems = [
+    { id: 'Files', label: 'My Vault', icon: <FileOutput size={20} /> },
+    { id: 'AuditLog', label: 'Audit Log', icon: <ShieldAlert size={20} /> },
+    { id: 'Settings', label: 'Account Settings', icon: <Settings size={20} /> }
+  ];
 
   return (
-    <div style={{ display: 'flex', height: '100vh', width: '100vw' }}>
+    <div className="flex h-screen w-screen bg-slate-950 text-slate-200 overflow-hidden font-sans selection:bg-emerald-500/30">
+      {/* Sidebar background gradient element */}
+      <div className="absolute top-0 left-0 w-72 h-full bg-gradient-to-b from-indigo-900/10 to-emerald-900/5 pointer-events-none"></div>
+      
       {/* Sidebar */}
-      <div style={{ width: '250px', backgroundColor: 'var(--bg-card)', borderRight: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <FileIcon color="var(--accent-primary)" size={24} />
-          <h2 style={{ margin: 0, fontSize: '1.25rem' }}>SecureVault</h2>
+      <div className="w-72 bg-slate-900/80 backdrop-blur-2xl border-r border-slate-800/80 flex flex-col z-20 shadow-2xl relative">
+        <div className="p-7 border-b border-slate-800/60 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400/20 to-emerald-600/20 border border-emerald-500/40 flex items-center justify-center shadow-[0_0_20px_rgba(16,185,129,0.25)] relative overflow-hidden group hover:shadow-[0_0_25px_rgba(16,185,129,0.4)] transition-all">
+            <div className="absolute inset-0 bg-emerald-400/10 blur-md group-hover:bg-emerald-400/20 transition-all"></div>
+            <ShieldAlert size={22} className="text-emerald-400 relative z-10" />
+          </div>
+          <div>
+            <h1 className="text-xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-indigo-400 tracking-wide">
+              SecureVault
+            </h1>
+            <p className="text-[10px] uppercase tracking-widest text-slate-500 font-mono mt-0.5">Enterprise Edition</p>
+          </div>
         </div>
-        <div style={{ flex: 1, padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <button className="btn btn-outline" style={{ textAlign: 'left', borderColor: 'var(--accent-primary)', color: 'var(--accent-primary)' }}>My Vault</button>
-          <button className="btn btn-outline" style={{ textAlign: 'left', border: 'none' }}>Audit Logs</button>
-          <button className="btn btn-outline" style={{ textAlign: 'left', border: 'none' }}>Security (2FA)</button>
+        
+        <div className="flex-1 py-8 px-4 space-y-2">
+          {navItems.map(item => {
+            const isActive = activeView === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setActiveView(item.id)}
+                className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all duration-300 relative group overflow-hidden ${
+                  isActive 
+                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shadow-[inset_0_0_20px_rgba(16,185,129,0.05)]' 
+                    : 'text-slate-400 hover:bg-white/5 hover:text-slate-200 border border-transparent'
+                }`}
+              >
+                {isActive && <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)]"></div>}
+                
+                <div className={`transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`}>
+                  {item.icon}
+                </div>
+                <span className="font-medium tracking-wide">{item.label}</span>
+                
+                {isActive && (
+                   <ChevronRight size={16} className="ml-auto opacity-70" />
+                )}
+              </button>
+            );
+          })}
         </div>
-        <div style={{ padding: '1rem', borderTop: '1px solid var(--border-color)' }}>
-          <button 
-            className="btn btn-outline" 
-            style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
-            onClick={() => dispatch(logoutUser())}
-          >
-            <LogOut size={16} /> Logout
-          </button>
+        
+        <div className="p-5 border-t border-slate-800/80 bg-slate-900/50 backdrop-blur-sm">
+           <button 
+             onClick={() => dispatch(logoutUser())} 
+             className="w-full flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl text-slate-400 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition-all duration-300 font-medium"
+           >
+             <LogOut size={18} />
+             <span>Sign Out Securely</span>
+           </button>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        {/* Header */}
-        <header style={{ padding: '1rem 2rem', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <h2 style={{ margin: 0 }}>Dashboard</h2>
-          <div style={{ display: 'flex', alignItems: 'center', position: 'relative', width: '300px' }}>
-            <Search size={18} color="var(--text-secondary)" style={{ position: 'absolute', left: '0.75rem' }} />
-            <input 
-              type="text" 
-              placeholder="Search files..." 
-              className="input-field" 
-              style={{ width: '100%', paddingLeft: '2.5rem', margin: 0, borderRadius: '999px', backgroundColor: 'var(--bg-card)' }}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col relative overflow-hidden bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-slate-800/30 via-slate-900 to-slate-950">
+        
+        {/* Deep ambient glow */}
+        <div className="absolute -top-40 -right-40 w-96 h-96 bg-emerald-500/5 rounded-full blur-[100px] pointer-events-none"></div>
+        <div className="absolute bottom-0 left-1/2 w-[800px] h-[500px] bg-indigo-500/5 rounded-full blur-[120px] pointer-events-none transform -translate-x-1/2 translate-y-1/2"></div>
+        
+        {/* Top Navbar */}
+        <header className="h-20 border-b border-slate-800/50 bg-slate-900/40 backdrop-blur-xl flex items-center justify-between px-8 z-10 shadow-sm relative">
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl font-bold text-white tracking-wide">{navItems.find(i => i.id === activeView)?.label}</h2>
+          </div>
+          <div className="flex justify-end items-center gap-5">
+             <div className="px-4 py-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-xs font-mono shadow-[0_0_15px_rgba(16,185,129,0.15)] flex items-center gap-2">
+               <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)] animate-[pulse_2s_ease-in-out_infinite]"></div>
+               SYSTEM SECURE
+             </div>
+             
+             {/* Simple user avatar corner */}
+             <div onClick={() => setActiveView('Settings')} className="w-9 h-9 rounded-full bg-indigo-500 border border-slate-700 flex items-center justify-center text-xs font-bold text-white shadow-lg cursor-pointer hover:shadow-[0_0_15px_rgba(99,102,241,0.4)] transition-all">
+                ES
+             </div>
           </div>
         </header>
 
-        {/* Content Area */}
-        <div style={{ padding: '2rem', flex: 1, overflowY: 'auto' }}>
-          
-          {/* Upload Zone */}
-          <div 
-            className="card" 
-            onClick={() => fileInputRef.current?.click()}
-            style={{ 
-              border: '2px dashed var(--border-color)', 
-              display: 'flex', 
-              flexDirection: 'column', 
-              alignItems: 'center', 
-              justifyContent: 'center', 
-              padding: '3rem', 
-              marginBottom: '2rem',
-              cursor: 'pointer',
-              backgroundColor: 'rgba(30, 41, 59, 0.5)'
-            }}
-          >
-            <UploadCloud size={48} color="var(--accent-primary)" style={{ marginBottom: '1rem' }} />
-            <h3 style={{ margin: 0 }}>Drag & Drop files securely</h3>
-            <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>AES-256 client-side encryption simulation</p>
-            <input type="file" ref={fileInputRef} onChange={handleUpload} style={{ display: 'none' }} />
+        {/* View Content */}
+        <main className="flex-1 overflow-y-auto p-6 md:p-10 relative z-0 hide-scrollbar">
+          <div className="max-w-7xl mx-auto h-full">
+            {renderView()}
           </div>
-
-          {/* Files Table */}
-          <div className="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Filename</th>
-                  <th>Created At</th>
-                  <th style={{ textAlign: 'right' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading && <tr><td colSpan="3" style={{ textAlign: 'center', padding: '2rem' }}>Loading vault...</td></tr>}
-                {!loading && files.length === 0 && (
-                  <tr><td colSpan="3" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>Vault is completely empty.</td></tr>
-                )}
-                {files.map(file => (
-                  <tr key={file.id}>
-                    <td style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 500 }}>
-                      <FileIcon size={16} color="var(--text-secondary)" /> {file.filename}
-                    </td>
-                    <td className="mono-text" style={{ color: 'var(--text-secondary)' }}>
-                      {new Date(file.created_at).toLocaleString()}
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
-                      <button onClick={() => handleDownload(file.id, file.filename)} className="btn btn-outline" style={{ padding: '0.25rem 0.5rem', marginRight: '0.5rem', border: 'none' }} title="Download">
-                        <Download size={16} color="var(--accent-primary)" />
-                      </button>
-                      <button onClick={() => handleShare(file.id)} className="btn btn-outline" style={{ padding: '0.25rem 0.5rem', marginRight: '0.5rem', border: 'none' }} title="Share">
-                        <Share2 size={16} color="var(--text-primary)" />
-                      </button>
-                      <button onClick={() => handleDelete(file.id)} className="btn btn-outline" style={{ padding: '0.25rem 0.5rem', border: 'none' }} title="Delete">
-                        <Trash2 size={16} color="var(--accent-destructive)" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        </main>
       </div>
-
-      {shareToken && (
-        <div className="modal-backdrop" onClick={(e) => { if (e.target === e.currentTarget) setShareToken(null) }}>
-          <div className="card" style={{ maxWidth: '500px', width: '100%', padding: '2rem' }}>
-            <h3>One-Time Burn Link</h3>
-            <p style={{ color: 'var(--accent-destructive)', fontSize: '0.875rem', marginBottom: '1rem' }}>
-              Warning: This is a burn-after-reading link. It will expire immediately upon download.
-            </p>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <input type="text" className="input-field mono-text" value={shareToken} readOnly style={{ margin: 0 }} />
-              <button className="btn btn-primary" onClick={() => { navigator.clipboard.writeText(shareToken); alert('Copied!'); }}>Copy</button>
-            </div>
-            <button className="btn btn-outline" style={{ marginTop: '1rem', width: '100%' }} onClick={() => setShareToken(null)}>Close</button>
-          </div>
-        </div>
-      )}
     </div>
   );
-};
-
-export default Dashboard;
+}
