@@ -1,17 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FileText, FileArchive, ImageIcon, Share2, Download, Search, UploadCloud } from 'lucide-react';
+import { FileText, FileArchive, ImageIcon, Share2, Download, Search, UploadCloud, Loader2 } from 'lucide-react';
 import ShareModal from './ShareModal';
 import apiClient from '../api/client';
 
 export default function FilesView() {
   const [loading, setLoading] = useState(true);
+  const [isUploading, setIsUploading] = useState(false);
   const [files, setFiles] = useState([]);
   const [sharingFile, setSharingFile] = useState(null);
   const [search, setSearch] = useState('');
   
-  // Referință pentru input-ul ascuns de fisiere
   const fileInputRef = useRef(null);
 
+  // Format file size from bytes to human-readable format
   const formatBytes = (bytes, decimals = 2) => {
     if (!+bytes) return '0 Bytes';
     const k = 1024;
@@ -21,27 +22,29 @@ export default function FilesView() {
     return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
   };
 
+  const fetchMyFiles = async () => {
+    try {
+      setLoading(true);
+      const response = await apiClient.get('/files/'); 
+      
+      const formattedFiles = response.data.map(file => ({
+        id: file.id,
+        name: file.filename || file.name || 'Unknown_File',
+        type: file.mime_type?.includes('pdf') ? 'pdf' : 
+              file.mime_type?.includes('zip') ? 'zip' : 
+              file.mime_type?.includes('image') ? 'image' : 'document',
+        size: formatBytes(file.file_size || 0),
+        date: new Date(file.created_at).toLocaleDateString('en-US')
+      }));
+      setFiles(formattedFiles);
+    } catch (error) {
+      console.error("Error fetching files:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchMyFiles = async () => {
-      try {
-        setLoading(true);
-        const response = await apiClient.get('/files/'); 
-        const formattedFiles = response.data.map(file => ({
-          id: file.id,
-          name: file.filename || file.name || 'Unknown_File',
-          type: file.mime_type?.includes('pdf') ? 'pdf' : 
-                file.mime_type?.includes('zip') ? 'zip' : 
-                file.mime_type?.includes('image') ? 'image' : 'document',
-          size: formatBytes(file.size || 0),
-          date: new Date(file.created_at).toLocaleDateString('en-US')
-        }));
-        setFiles(formattedFiles);
-      } catch (error) {
-        console.error("Error fetching files:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchMyFiles();
   }, []);
 
@@ -54,11 +57,41 @@ export default function FilesView() {
     }
   };
 
-  // Funcția care se rulează când selectezi un fișier de pe PC
-  const handleFileChange = (e) => {
+  // Upload file logic
+  const handleFileChange = async (e) => {
     const selectedFile = e.target.files[0];
-    if (selectedFile) {
-      alert(`File selected: ${selectedFile.name}\n(Soon we will link this to the Python backend!)`);
+    if (!selectedFile) return;
+    
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+    
+    try {
+      setIsUploading(true);
+      await apiClient.post('/files/upload', formData);
+      await fetchMyFiles();
+    } catch (err) {
+      console.error('Upload failed:', err);
+      alert('Upload failed. Check console for details.');
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  // Download file logic
+  const handleDownload = async (fileId, filename) => {
+    try {
+      const response = await apiClient.get(`/files/download/${fileId}`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      console.error('Download failed:', err);
+      alert('Download failed. Check console for details.');
     }
   };
 
@@ -84,7 +117,6 @@ export default function FilesView() {
             />
           </div>
           
-          {/* Input ascuns pentru File Browser */}
           <input 
             type="file" 
             ref={fileInputRef} 
@@ -92,13 +124,13 @@ export default function FilesView() {
             className="hidden" 
           />
           
-          {/* Butonul de Upload activat */}
           <button 
             onClick={() => fileInputRef.current?.click()}
-            className="h-11 flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold px-6 rounded-full transition-all duration-300 shadow-[0_0_15px_rgba(16,185,129,0.2)] hover:shadow-[0_0_25px_rgba(16,185,129,0.5)] shrink-0"
+            disabled={isUploading}
+            className="h-11 flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold px-6 rounded-full transition-all duration-300 shadow-[0_0_15px_rgba(16,185,129,0.2)] hover:shadow-[0_0_25px_rgba(16,185,129,0.5)] shrink-0 disabled:opacity-70 disabled:cursor-not-allowed"
           >
-            <UploadCloud size={20} />
-            <span>Upload File</span>
+            {isUploading ? <Loader2 className="animate-spin" size={20} /> : <UploadCloud size={20} />}
+            <span>{isUploading ? 'Uploading...' : 'Upload File'}</span>
           </button>
         </div>
       </div>
@@ -127,7 +159,10 @@ export default function FilesView() {
                   {getIconStatus(file.type)}
                 </div>
                 <div className="flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 translate-x-2 group-hover:translate-x-0">
-                  <button className="p-2.5 text-slate-400 hover:text-white bg-slate-800/80 backdrop-blur-sm rounded-full hover:bg-slate-700 border border-slate-700/50 transition-all shadow-sm">
+                  <button 
+                    onClick={() => handleDownload(file.id, file.name)}
+                    className="p-2.5 text-slate-400 hover:text-white bg-slate-800/80 backdrop-blur-sm rounded-full hover:bg-slate-700 border border-slate-700/50 transition-all shadow-sm"
+                  >
                     <Download size={18} />
                   </button>
                   <button 

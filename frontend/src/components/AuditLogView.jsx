@@ -6,6 +6,7 @@ export default function AuditLogView() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Generate static heatmap data until integrated with a complex backend aggregation
   const heatmapDays = Array.from({ length: 30 }, (_, i) => ({
     id: i,
     intensity: Math.floor(Math.random() * 4)
@@ -24,11 +25,12 @@ export default function AuditLogView() {
         setLoading(true);
         const response = await apiClient.get('/audit/');
         
+        // Map database fields to UI requirements
         const formattedLogs = response.data.map(log => ({
           id: log.id,
           action: log.action || log.event_type || 'System Event',
           ip: log.ip_address || 'Unknown',
-          time: new Date(log.created_at).toLocaleString('en-US'),
+          time: new Date(log.timestamp).toLocaleString('en-US'),
           isWarning: log.status === 'failed' || (log.action && log.action.toLowerCase().includes('fail'))
         }));
 
@@ -39,6 +41,7 @@ export default function AuditLogView() {
         setLoading(false);
       }
     };
+
     fetchAuditLogs();
   }, []);
 

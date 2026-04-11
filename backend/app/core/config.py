@@ -10,12 +10,16 @@ class Settings(BaseSettings):
     POSTGRES_PORT: str
     POSTGRES_DB: str
     
-    # JWT Configuration (NOI)
+    # JWT Configuration
     SECRET_KEY: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
     ENCRYPTION_KEY: str
     DEBUG: bool = False
+
+    # Email Configuration
+    RESEND_API_KEY: str = ""
+    FRONTEND_URL: str = "http://localhost:5173"
     
     @property
     def DATABASE_URL(self) -> str:
